@@ -1,6 +1,7 @@
 package xml.reader;
 
 import java.io.*;
+import java.util.Scanner;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import org.w3c.dom.Document;
@@ -9,17 +10,27 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
 public class ReadXMLFile {
+
+
+public void run() {
+    Scanner scanner = new Scanner(System.in);
+    System.out.print("Enter the fields you want to print out (comma-separated): ");
+    String fieldsInput = "";
+    if (scanner.hasNextLine()) {
+        fieldsInput = scanner.nextLine();
+    }
+    String[] outputFields = fieldsInput.split(",");
     
-  public void run() {
     try {
-        InputStream inputStream = getClass().getResourceAsStream("/data.xml");
-        parseXMLFile(inputStream);
+        InputStream inputStream = getClass().getClassLoader().getResourceAsStream("data.xml");
+        parseXMLFile(inputStream, outputFields);
     } catch (Exception e) {
         e.printStackTrace();
-        }
     }
+}
 
-    public void parseXMLFile(InputStream inputStream) {
+
+public void parseXMLFile(InputStream inputStream, String[] outputFields) {
     try {
         DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
         DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
@@ -29,7 +40,13 @@ public class ReadXMLFile {
         for (int i = 0; i < nodeList.getLength(); i++) {
             Node node = nodeList.item(i);
             if (node.getNodeType() == Node.ELEMENT_NODE) {
-                System.out.println(node.getTextContent().trim().replace("/n", ""));
+                Element element = (Element) node;
+                for (String field : outputFields) {
+                    NodeList fieldList = element.getElementsByTagName(field);
+                    if (fieldList.getLength() > 0) {
+                        System.out.println(field + ": " + fieldList.item(0).getTextContent());
+                    }
+                }
             }
         }
     } catch (Exception e) {
