@@ -26,9 +26,9 @@ dependencies {
 
     //xml dependecy
     implementation 'javax.xml.parsers:jaxp-api:1.4.5'
-    implementation 'com.fasterxml.jackson.core:jackson-databind:2.12.5'
     implementation 'org.apache.commons:commons-lang3:3.12.0'
     implementation 'org.w3c:dom:2.3.0-jaxb-1.0.6'
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.13.0'
 
 }
 

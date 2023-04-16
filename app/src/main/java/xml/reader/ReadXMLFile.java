@@ -1,73 +1,69 @@
 package xml.reader;
 
-import java.io.*;
-import java.util.Scanner;
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.w3c.dom.Document;
-import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import java.io.File;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Scanner;
+
 public class ReadXMLFile {
 
+    private static final String XML_FILE_PATH = "src/main/resources/data.xml";
 
-public void run() {
-    Scanner scanner = new Scanner(System.in);
-    System.out.print("Enter the fields you want to print out (comma-separated): ");
-    String fieldsInput = "";
-    if (scanner.hasNextLine()) {
-        fieldsInput = scanner.nextLine();
+    public void run() {
+        try {
+            List<String> fields = getUserInput();
+            Map<String, List<String>> data = parseXMLFile(new File(XML_FILE_PATH), fields);
+            String json = convertToJson(data);
+            System.out.println(json);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
-    String[] outputFields = fieldsInput.split(",");
-    
-    try {
-        InputStream inputStream = getClass().getClassLoader().getResourceAsStream("data.xml");
-        parseXMLFile(inputStream, outputFields);
-    } catch (Exception e) {
-        e.printStackTrace();
+
+
+    private List<String> getUserInput() {
+        Scanner scanner = new Scanner(System.in);
+        System.out.print("Enter comma-separated list of fields to output: ");
+        String input = scanner.nextLine();
+        return List.of(input.split("\\s*,\\s*"));
     }
-}
 
 
-public void parseXMLFile(InputStream inputStream, String[] outputFields) {
-    try {
-        DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
-        DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
-        Document doc = dBuilder.parse(inputStream);
+    private Map<String, List<String>> parseXMLFile(File file, List<String> fields) throws Exception {
+        DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+        DocumentBuilder db = dbf.newDocumentBuilder();
+        Document doc = db.parse(file);
         doc.getDocumentElement().normalize();
-        NodeList nodeList = doc.getElementsByTagName("*");
-        for (int i = 0; i < nodeList.getLength(); i++) {
-            Node node = nodeList.item(i);
-            if (node.getNodeType() == Node.ELEMENT_NODE) {
-                Element element = (Element) node;
-                for (String field : outputFields) {
-                    NodeList fieldList = element.getElementsByTagName(field);
-                    if (fieldList.getLength() > 0) {
-                        System.out.println(field + ": " + fieldList.item(0).getTextContent());
-                    }
+
+        Map<String, List<String>> data = new HashMap<>();
+
+        for (String field : fields) {
+            NodeList nodeList = doc.getElementsByTagName(field);
+            List<String> fieldData = new ArrayList<>();
+            for (int i = 0; i < nodeList.getLength(); i++) {
+                Node node = nodeList.item(i);
+                if (node.getNodeType() == Node.ELEMENT_NODE) {
+                    fieldData.add(node.getTextContent());
                 }
             }
+            data.put(field, fieldData);
         }
-    } catch (Exception e) {
-        e.printStackTrace();
+
+        return data;
     }
-}
 
-    
-
-
-
-  public void readFile() {
-    try (InputStream inputStream = getClass().getResourceAsStream("/data.xml");
-         BufferedReader br = new BufferedReader(new InputStreamReader(inputStream))) {
-        String line;
-        while ((line = br.readLine()) != null) {
-            System.out.println(line);
-        }
-    } catch (Exception e) {
-        e.printStackTrace();
+    private String convertToJson(Map<String, List<String>> data) throws JsonProcessingException {
+        ObjectMapper objectMapper = new ObjectMapper();
+        return objectMapper.writeValueAsString(data);
     }
-}
-
 }
