@@ -1,69 +1,87 @@
 package xml.reader;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.w3c.dom.Document;
-import org.w3c.dom.Node;
-import org.w3c.dom.NodeList;
-
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-import java.io.File;
+import java.io.InputStream;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Scanner;
 
+import javax.xml.parsers.SAXParser;
+import javax.xml.parsers.SAXParserFactory;
+
+import org.xml.sax.Attributes;
+import org.xml.sax.SAXException;
+import org.xml.sax.helpers.DefaultHandler;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 public class ReadXMLFile {
-
-    private static final String XML_FILE_PATH = "src/main/resources/data.xml";
-
-    public void run() {
-        try {
-            List<String> fields = getUserInput();
-            Map<String, List<String>> data = parseXMLFile(new File(XML_FILE_PATH), fields);
-            String json = convertToJson(data);
+    
+    private static class XMLHandler extends DefaultHandler {
+        
+        private String currentField;
+        private Object object;
+        
+        public XMLHandler(Object object) {
+            this.object = object;
+        }
+        
+        @Override
+        public void startElement(String uri, String localName, String qName, Attributes attributes) throws SAXException {
+            currentField = qName;
+        }
+        
+        @Override
+        public void characters(char[] ch, int start, int length) throws SAXException {
+            String value = new String(ch, start, length).trim();
+            setObjectField(currentField, value);
+        }
+        
+        private void setObjectField(String fieldName, String value) {
+            try {
+                object.getClass().getField(fieldName).set(object, value);
+            } catch (NoSuchFieldException | IllegalAccessException e) {
+                // Ignore fields that don't exist
+            }
+        }
+    }
+    
+    private static boolean isFieldIncluded(List<String> fields, String fieldName) {
+        if (fields.isEmpty()) {
+            return true;
+        }
+        return fields.contains(fieldName);
+    }
+    
+    public static void run() {
+        Scanner scanner = new Scanner(System.in);
+        System.out.print("Enter the fields to output (comma-separated): ");
+        String fieldsInput = scanner.nextLine();
+        List<String> fields = new ArrayList<>();
+        if (!fieldsInput.isEmpty()) {
+            for (String fieldName : fieldsInput.split(",")) {
+                fields.add(fieldName.trim());
+            }
+        }
+        scanner.close();
+        
+        try (InputStream inputStream = ReadXMLFile.class.getClassLoader().getResourceAsStream("data.xml")) {
+            SAXParserFactory factory = SAXParserFactory.newInstance();
+            SAXParser saxParser = factory.newSAXParser();
+            Object object = new Object();
+            XMLHandler handler = new XMLHandler(object);
+            saxParser.parse(inputStream, handler);
+            ObjectMapper mapper = new ObjectMapper();
+            String json = mapper.writeValueAsString(object);
             System.out.println(json);
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
-
-
-    private List<String> getUserInput() {
-        Scanner scanner = new Scanner(System.in);
-        System.out.print("Enter comma-separated list of fields to output: ");
-        String input = scanner.nextLine();
-        return List.of(input.split("\\s*,\\s*"));
+    
+    public static class Object {
+        public String field1;
+        public String field2;
+        public String field3;
     }
-
-
-    private Map<String, List<String>> parseXMLFile(File file, List<String> fields) throws Exception {
-        DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
-        DocumentBuilder db = dbf.newDocumentBuilder();
-        Document doc = db.parse(file);
-        doc.getDocumentElement().normalize();
-
-        Map<String, List<String>> data = new HashMap<>();
-
-        for (String field : fields) {
-            NodeList nodeList = doc.getElementsByTagName(field);
-            List<String> fieldData = new ArrayList<>();
-            for (int i = 0; i < nodeList.getLength(); i++) {
-                Node node = nodeList.item(i);
-                if (node.getNodeType() == Node.ELEMENT_NODE) {
-                    fieldData.add(node.getTextContent());
-                }
-            }
-            data.put(field, fieldData);
-        }
-
-        return data;
-    }
-
-    private String convertToJson(Map<String, List<String>> data) throws JsonProcessingException {
-        ObjectMapper objectMapper = new ObjectMapper();
-        return objectMapper.writeValueAsString(data);
-    }
+    
 }
